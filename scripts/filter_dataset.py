@@ -2,6 +2,12 @@ import json
 
 import polars as pl
 from transformers import AutoTokenizer
+import spacy
+
+spacy.prefer_gpu()
+
+nlp = spacy.load("en_core_web_trf")
+
 
 keywords = [
     "sugar",
@@ -97,8 +103,18 @@ def extract_action_context(series: pl.Series) -> pl.Series:
         except Exception:
             pass
         return " ".join(str(val).split()[:4])
+    
+    def extract_verbs_from_text(directions_list):
+        directions_list = json.loads(directions_list)
+        verbs = []
+        for text in directions_list:
+            doc = nlp(text)
+            for token in doc:
+                if token.pos_ == "VERB":
+                    verbs.append(token.text)
+        return str(verbs)
 
-    return series.map_elements(get_first_step, return_dtype=pl.String)
+    return series.map_elements(extract_verbs_from_text, return_dtype=pl.String)
 
 
 print("Streaming and building pre-tokenized target blocks...")
@@ -114,8 +130,8 @@ data_sampled = (
     )
     .collect()
     .sample(fraction=1.0, shuffle=True, seed=42)
-    .limit(20000)
-    .with_columns([pl.col("directions").map_batches(extract_action_context).alias("action_text")])
+    .limit(20000) # set back to 20k after testing
+    .with_columns([pl.col("directions").map_batches(extract_action_context, return_dtype=pl.String).alias("action_text")])
 )
 
 # ==============================================================================
@@ -196,8 +212,11 @@ triples_raw = [
 ]
 
 synthetic_df = pl.DataFrame(
-    triples_raw, schema={"ingredients": pl.String, "action_text": pl.String, "title": pl.String}
+    triples_raw, schema={"ingredients": pl.String, "action_text": pl.String, "directions": pl.String}
 )
+
+# add title alias
+synthetic_df = synthetic_df.with_columns(pl.col("directions").alias("title"))
 
 # Pull the real 'title' along instead of 'directions' now
 data_sampled = data_sampled.select(["ingredients", "action_text", "title"])
