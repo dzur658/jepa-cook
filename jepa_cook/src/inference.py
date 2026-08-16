@@ -42,6 +42,7 @@ def run_local_inference(args, config: dict) -> None:
             try:
                 lst = json.loads(text_input) if "[" in text_input else [text_input]
             except Exception:
+                print(f"Exception raised for: {text_input}")
                 lst = [text_input]
             tokens_list = [torch.tensor(tokenizer(item, add_special_tokens=False)["input_ids"]) for item in lst]
             return pad_nested_sequences([tokens_list], max_len=model_cfg["max_len"])
