@@ -54,7 +54,7 @@ uv run python -m jepa_cook.src.cli train
 
 To explicitly pass an alternate configuration profile layout:
 ```bash
-uv run python -m jepa_cook.src.cli train --config config.yaml
+uv run python -m jepa_cook.src.cli --config config.yaml train
 ```
 
 ### Inference
